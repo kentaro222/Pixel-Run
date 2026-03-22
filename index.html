@@ -2,26 +2,64 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Pixel Run - 1bit Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Haunted Run - 1bit Mobile Edition</title>
     <style>
-        body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; }
-        #game-container { position: relative; width: 640px; height: 360px; border: 4px solid #fff; overflow: hidden; } /* 枠線も白に */
+        /* 全体レイアウト */
+        body { 
+            margin: 0; background: #000; 
+            display: flex; justify-content: center; align-items: center; 
+            height: 100vh; width: 100vw;
+            color: #fff; font-family: 'Courier New', monospace; 
+            overflow: hidden; touch-action: none; /* スマホのスクロール等を無効化 */
+        }
+
+        /* ゲーム画面の外枠（コンテナ） */
+        #game-wrapper {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+        }
+
         canvas { 
             display: block; 
-            image-rendering: pixelated; /* ブラウザ側での拡大時のぼやけ防止 */
+            image-rendering: pixelated; /* ドットをパキッとさせる */
             image-rendering: crisp-edges;
+            border: 2px solid #fff; /* 白黒デザインに合わせて枠を細く */
+            background-color: #000;
         }
-        #ui { position: absolute; top: 10px; width: 100%; display: flex; justify-content: space-between; padding: 0 20px; box-sizing: border-box; pointer-events: none; z-index: 10; }
-        #scoreDisplay { font-size: 24px; text-shadow: 2px 2px #000; font-weight: bold; }
+
+        #ui { 
+            position: absolute; 
+            top: 10px; width: 100%; 
+            display: flex; justify-content: space-between; 
+            padding: 0 20px; box-sizing: border-box; 
+            pointer-events: none; z-index: 10; 
+        }
+        #scoreDisplay { font-size: 20px; font-weight: bold; }
+
+        /* スマホ縦持ちへの警告メッセージ（任意） */
+        #portrait-notice {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; color: #fff; z-index: 100;
+            flex-direction: column; justify-content: center; align-items: center;
+            text-align: center; font-size: 14px;
+        }
+        @media (orientation: portrait) {
+            /* 縦持ちの時だけメッセージを出す場合はここを弄る */
+        }
     </style>
 </head>
 <body>
-    <div id="game-container">
+    <div id="game-wrapper">
         <div id="ui">
-            <div>PIXEL RUN</div>
+            <div id="titleDisplay">HAUNTED RUN</div>
             <div id="scoreDisplay">SCORE: 000000</div>
         </div>
-        <canvas id="gameCanvas" width="640" height="360"></canvas>
+        <canvas id="gameCanvas"></canvas>
     </div>
 
 <script>
@@ -29,18 +67,21 @@
     const ctx = canvas.getContext('2d');
     const scoreDisplay = document.getElementById('scoreDisplay');
 
-    // ★ 画像のぼやけを完全に防ぐ設定
-    ctx.imageSmoothingEnabled = false;
-
     // ==========================================
-    // カラーパレット設定（ここで色を一括管理）
+    // 1. カラーパレット（後で変えやすいように！）
     // ==========================================
     const COLORS = {
-        BG: "#000000",      // 背景色（黒）
-        FG: "#ffffff",      // 前景色（白：キャラ、地面、障害物）
-        UI: "#ffffff",      // スコアなどの色
-        EFFECT: "#ffffff"   // 砂埃や死亡時のエフェクト
+        BG: "#000000",      // 背景
+        FG: "#ffffff",      // 前景（キャラ・地面・障害物）
+        UI: "#ffffff",      // 文字
+        EFFECT: "#ffffff"   // エフェクト
     };
+
+    // ==========================================
+    // 2. ゲーム設定（ピクセルパーフェクト優先）
+    // ==========================================
+    const INTERNAL_W = 640; // 内部解像度（横）
+    const INTERNAL_H = 360; // 内部解像度（縦）
 
     const CONFIG = {
         GRAVITY: 0.6,
@@ -48,11 +89,11 @@
         SECOND_JUMP_POWER: -8,
         SECOND_JUMP_SPEED_MULTI: 0.8,
         MAX_JUMPS: 2,
-        BASE_SPEED: 6.0,
+        BASE_SPEED: 5.0,
         SPEED_UP_RATIO: 0.0025,
-        PLAYER_SIZE: 42,
-        HIT_BOX_MARGIN_X: 12,
-        HIT_BOX_MARGIN_Y: 12 
+        PLAYER_SIZE: 48,          // 16の倍数(48)にすることでドットの歪みを防止
+        HIT_BOX_MARGIN_X: 14,
+        HIT_BOX_MARGIN_Y: 14 
     };
 
     const SPRITE_SHEET_URL = 'player_1bit00_sheet.png'; 
@@ -65,20 +106,42 @@
     let particles = [];
     let frame = 0;
     let bgScroll = 0;
-    
     let distanceTraveled = 0;
     let nextSpawnDistance = 100;
+
+    // --- リサイズ処理（ピクセルパーフェクト対応） ---
+    function resize() {
+        // 画面に収まる最大倍率（整数）を計算
+        const scaleX = window.innerWidth / INTERNAL_W;
+        const scaleY = window.innerHeight / INTERNAL_H;
+        let scale = Math.max(1, Math.floor(Math.min(scaleX, scaleY)));
+
+        // もし画面が小さすぎて1倍すら入らない場合は、仕方ないのでフィットさせる
+        if (scaleX < 1 || scaleY < 1) {
+            scale = Math.min(scaleX, scaleY);
+        }
+
+        canvas.width = INTERNAL_W;
+        canvas.height = INTERNAL_H;
+        canvas.style.width = (INTERNAL_W * scale) + "px";
+        canvas.style.height = (INTERNAL_H * scale) + "px";
+
+        // 描画設定の再適用（リサイズ時にリセットされるため）
+        ctx.imageSmoothingEnabled = false;
+    }
+    window.addEventListener('resize', resize);
+    resize();
 
     const spriteSheet = new Image();
     spriteSheet.src = SPRITE_SHEET_URL;
     let imagesLoaded = false;
     spriteSheet.onload = () => { imagesLoaded = true; };
 
+    // --- パーティクル ---
     class Particle {
         constructor(x, y, color, vx, vy) {
             this.x = x; this.y = y; this.color = color; this.vx = vx; this.vy = vy;
-            this.life = 1.0; 
-            this.size = Math.random() * 3 + 1;
+            this.life = 1.0; this.size = Math.random() * 3 + 1;
         }
         update() { 
             this.x += this.vx - currentSpeed * 0.4; 
@@ -89,7 +152,7 @@
             if (this.life <= 0) return;
             ctx.globalAlpha = this.life;
             ctx.fillStyle = this.color;
-            ctx.fillRect(Math.floor(this.x), Math.floor(this.y), this.size, this.size);
+            ctx.fillRect(Math.floor(this.x), Math.floor(this.y), Math.floor(this.size), Math.floor(this.size));
             ctx.globalAlpha = 1.0;
         }
     }
@@ -100,6 +163,7 @@
         }
     }
 
+    // --- プレイヤー ---
     const player = {
         x: 80, y: 0, vy: 0, w: CONFIG.PLAYER_SIZE, h: CONFIG.PLAYER_SIZE,
         jumpCount: 0, isFallingIntoPit: false,
@@ -126,18 +190,11 @@
         checkOnPit() {
             const pLeft = this.x + this.w * 0.3;
             const pRight = this.x + this.w * 0.7;
-            const pitForgiveness = 16;
-            
-            return obstacles.some(o => 
-                o.type === 'PIT' && 
-                pLeft > o.x && 
-                pRight < (o.x + o.w - pitForgiveness)
-            );
+            return obstacles.some(o => o.type === 'PIT' && pLeft > o.x && pRight < (o.x + o.w - 16));
         },
 
         draw() {
             if (!imagesLoaded) return;
-            ctx.imageSmoothingEnabled = false; // ★ 描画直前にも念のため設定
             let sx = (this.jumpCount > 0) ? 32 : (Math.floor(frame / 8) % 2 ? 16 : 0);
             ctx.save();
             ctx.translate(Math.floor(this.x + this.w), Math.floor(this.y));
@@ -156,6 +213,7 @@
         }
     };
 
+    // --- 障害物生成 ---
     function spawnObstacle() {
         if (distanceTraveled >= nextSpawnDistance) {
             distanceTraveled = 0;
@@ -166,16 +224,13 @@
             let type, w, h, y, isPassable = false;
 
             if (rand < 0.25) { 
-                // 穴
                 type = 'PIT'; w = 80 + Math.random() * 110; h = 100; y = GROUND_Y;
             } else if (rand < 0.60) { 
-                // 壁（地上障害物をここに統合）
                 type = 'WALL'; 
-                h = 40 + Math.random() * 60; // 低いものから高いものまでランダム
+                h = 40 + Math.random() * 60;
                 w = 20 + Math.random() * 30; 
                 y = GROUND_Y - h; 
             } else { 
-                // 浮遊物
                 type = 'FLOAT'; 
                 w = 30 + Math.random() * 120;
                 if (Math.random() < 0.5) {
@@ -194,6 +249,7 @@
         }
     }
 
+    // --- メインループ ---
     function loop() {
         if (!gameActive) return;
         frame++; 
@@ -202,17 +258,16 @@
         
         let effectiveSpeed = currentSpeed;
         if (player.jumpCount === 2) effectiveSpeed *= CONFIG.SECOND_JUMP_SPEED_MULTI;
-        
         distanceTraveled += effectiveSpeed;
 
         player.update(); 
         spawnObstacle();
 
-        // 背景
+        // 描画
         ctx.fillStyle = COLORS.BG;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // 背景のグリッド（白黒になじむよう薄いグレーを計算）
+        // 背景グリッド
         bgScroll -= effectiveSpeed * 0.15;
         ctx.fillStyle = "rgba(255,255,255,0.05)";
         for (let i = 0; i < 15; i++) {
@@ -222,20 +277,17 @@
 
         // 地面
         ctx.fillStyle = COLORS.FG;
-        ctx.fillRect(0, GROUND_Y, canvas.width, 4); // 地面を厚い線にする（スタイリッシュ！）
-        ctx.fillStyle = COLORS.BG;
-        ctx.fillRect(0, GROUND_Y + 4, canvas.width, canvas.height - GROUND_Y);
+        ctx.fillRect(0, GROUND_Y, canvas.width, 4); 
 
         for (let i = obstacles.length - 1; i >= 0; i--) {
             let o = obstacles[i];
             o.x -= effectiveSpeed;
 
             if (o.type === 'PIT') {
-                ctx.fillStyle = COLORS.BG; // 穴は背景と同じ色で抜く
+                ctx.fillStyle = COLORS.BG;
                 ctx.fillRect(Math.floor(o.x), GROUND_Y, Math.floor(o.w), 10);
             } else {
                 ctx.fillStyle = COLORS.FG;
-                // 浮遊物で「くぐれない」ものは、少し模様（枠線）をつけるなどのアレンジも可能
                 ctx.fillRect(Math.floor(o.x), Math.floor(o.y), Math.floor(o.w), Math.floor(o.h));
             }
 
@@ -259,7 +311,6 @@
         }
 
         player.draw();
-        scoreDisplay.style.color = COLORS.UI;
         scoreDisplay.innerText = "SCORE: " + String(score).padStart(6, '0');
         requestAnimationFrame(loop);
     }
@@ -271,6 +322,7 @@
         setTimeout(() => { alert(msg + "\nSCORE: " + score); location.reload(); }, 100);
     }
 
+    // 入力
     window.addEventListener('keydown', (e) => { if (e.code === 'Space' || e.code === 'ArrowUp') player.jump(); });
     window.addEventListener('touchstart', (e) => { player.jump(); e.preventDefault(); }, {passive: false});
 
