@@ -6,9 +6,8 @@
     <link rel="apple-touch-icon" href="icon-192.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pixel Run - 1bit Mobile Edition</title>
+    <title>PIXEL RUN</title>
     <style>
-        /* 全体レイアウト */
         body { 
             margin: 0; background: #000; 
             display: flex; justify-content: center; align-items: center; 
@@ -16,7 +15,6 @@
             color: #fff; font-family: 'Courier New', monospace; 
             overflow: hidden; touch-action: none;
         }
-
         #game-wrapper {
             position: relative;
             display: flex;
@@ -25,7 +23,6 @@
             width: 100%;
             height: 100%;
         }
-
         canvas { 
             display: block; 
             image-rendering: pixelated;
@@ -33,18 +30,14 @@
             border: 2px solid #fff;
             background-color: #000;
         }
-
-        /* スタート画面のオーバーレイ */
         #start-screen {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.85); /* 背景を少し透過させて暗くする */
+            background: rgba(0, 0, 0, 0.85);
             display: flex; flex-direction: column;
             justify-content: center; align-items: center;
             z-index: 20;
         }
-
-        /* 1-bitスタイルのボタン */
         #start-button {
             background: #fff; color: #000;
             border: 4px solid #fff;
@@ -52,12 +45,8 @@
             font-family: 'Courier New', monospace;
             font-size: 24px; font-weight: bold;
             cursor: pointer;
-            box-shadow: 0 0 0 4px #000 inset; /* 内側に黒枠を入れてボタンっぽく */
+            box-shadow: 0 0 0 4px #000 inset;
         }
-        #start-button:active {
-            background: #ccc; /* 押した時の反応 */
-        }
-
         #ui { 
             position: absolute; 
             top: 10px; width: 100%; 
@@ -74,7 +63,6 @@
             <h1 style="margin-bottom: 30px;">PIXEL RUN</h1>
             <button id="start-button">START GAME</button>
         </div>
-
         <div id="ui">
             <div id="titleDisplay">PIXEL RUN</div>
             <div id="scoreDisplay">SCORE: 000000</div>
@@ -89,23 +77,34 @@
     const startScreen = document.getElementById('start-screen');
     const startButton = document.getElementById('start-button');
 
-    // ... (COLORS, CONFIG, プレイヤー、障害物生成、loop関数などは以前のまま) ...
-    // ※ 変更がない部分は省略していますが、お手元のコードのままで大丈夫です。
-
-    // 以前のコードと共通の設定部分
     const COLORS = { BG: "#000000", FG: "#ffffff", UI: "#ffffff", EFFECT: "#ffffff" };
     const INTERNAL_W = 640; const INTERNAL_H = 360;
+
     const CONFIG = {
-        GRAVITY: 0.6, FIRST_JUMP_POWER: -11, SECOND_JUMP_POWER: -8, SECOND_JUMP_SPEED_MULTI: 0.8,
-        MAX_JUMPS: 2, BASE_SPEED: 5.0, SPEED_UP_RATIO: 0.0025, PLAYER_SIZE: 48,
-        HIT_BOX_MARGIN_X: 14, HIT_BOX_MARGIN_Y: 14 
+        GRAVITY: 0.6,
+        FIRST_JUMP_POWER: -11,
+        SECOND_JUMP_POWER: -8,
+        SECOND_JUMP_SPEED_MULTI: 0.8,
+        MAX_JUMPS: 2,
+        BASE_SPEED: 5.0,
+        SPEED_UP_RATIO: 0.0025,
+        PLAYER_SIZE: 48,
+        HIT_BOX_MARGIN_X: 14,
+        HIT_BOX_MARGIN_Y: 14 
     };
+
     const SPRITE_SHEET_URL = 'player_1bit00_sheet.png'; 
     const GROUND_Y = 300;
     
-    let gameActive = false; // ★ 最初は false に変更
-    let score = 0; let currentSpeed = CONFIG.BASE_SPEED; let obstacles = []; let particles = []; let frame = 0;
-    let bgScroll = 0; let distanceTraveled = 0; let nextSpawnDistance = 100;
+    let gameActive = false;
+    let score = 0;
+    let currentSpeed = CONFIG.BASE_SPEED;
+    let obstacles = [];
+    let particles = [];
+    let frame = 0;
+    let bgScroll = 0;
+    let distanceTraveled = 0;
+    let nextSpawnDistance = 100;
 
     function resize() {
         const scaleX = window.innerWidth / INTERNAL_W;
@@ -113,7 +112,8 @@
         let scale = Math.max(1, Math.floor(Math.min(scaleX, scaleY)));
         if (scaleX < 1 || scaleY < 1) scale = Math.min(scaleX, scaleY);
         canvas.width = INTERNAL_W; canvas.height = INTERNAL_H;
-        canvas.style.width = (INTERNAL_W * scale) + "px"; canvas.style.height = (INTERNAL_H * scale) + "px";
+        canvas.style.width = (INTERNAL_W * scale) + "px";
+        canvas.style.height = (INTERNAL_H * scale) + "px";
         ctx.imageSmoothingEnabled = false;
     }
     window.addEventListener('resize', resize);
@@ -124,52 +124,152 @@
     let imagesLoaded = false;
     spriteSheet.onload = () => { 
         imagesLoaded = true;
-        // 最初の1フレームだけ描画して背景を見せておく（お好みで）
         drawInitialState();
     };
 
     function drawInitialState() {
         ctx.fillStyle = COLORS.BG; ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = COLORS.FG; ctx.fillRect(0, GROUND_Y, canvas.width, 4);
-        // キャラクターも描画
         if (imagesLoaded) {
-            ctx.save(); ctx.translate(80 + 48, GROUND_Y - 48); ctx.scale(-1, 1);
-            ctx.drawImage(spriteSheet, 0, 0, 16, 16, 0, 0, 48, 48); ctx.restore();
+            ctx.save(); ctx.translate(Math.floor(80 + CONFIG.PLAYER_SIZE), Math.floor(GROUND_Y - CONFIG.PLAYER_SIZE));
+            ctx.scale(-1, 1);
+            ctx.drawImage(spriteSheet, 0, 0, 16, 16, 0, 0, CONFIG.PLAYER_SIZE, CONFIG.PLAYER_SIZE);
+            ctx.restore();
         }
     }
 
-    // --- (Particle, player, spawnObstacle, loop, gameOver関数群 ... これらは変更なし) ---
-    // ※ loop関数内の一番上にある「if (!gameActive) return;」が重要になります。
+    class Particle {
+        constructor(x, y, color, vx, vy) {
+            this.x = x; this.y = y; this.color = color; this.vx = vx; this.vy = vy;
+            this.life = 1.0; this.size = Math.random() * 3 + 1;
+        }
+        update() { this.x += this.vx - currentSpeed * 0.4; this.y += this.vy; this.life -= 0.06; }
+        draw() {
+            if (this.life <= 0) return;
+            ctx.globalAlpha = this.life; ctx.fillStyle = this.color;
+            ctx.fillRect(Math.floor(this.x), Math.floor(this.y), Math.floor(this.size), Math.floor(this.size));
+            ctx.globalAlpha = 1.0;
+        }
+    }
 
-    /* --- ここからスタート処理 --- */
+    function createDust(x, y, count, color) {
+        for (let i = 0; i < count; i++) {
+            particles.push(new Particle(x, y, color, (Math.random() - 0.5) * 5, (Math.random() - 0.5) * 5));
+        }
+    }
+
+    const player = {
+        x: 80, y: 0, vy: 0, w: CONFIG.PLAYER_SIZE, h: CONFIG.PLAYER_SIZE,
+        jumpCount: 0, isFallingIntoPit: false,
+        update() {
+            this.vy += CONFIG.GRAVITY; this.y += this.vy;
+            if (!this.isFallingIntoPit) {
+                if (this.y > GROUND_Y - this.h) {
+                    if (this.checkOnPit()) { this.isFallingIntoPit = true; } 
+                    else {
+                        if (this.vy > 8) createDust(this.x + this.w/2, GROUND_Y, 5, COLORS.EFFECT);
+                        this.y = GROUND_Y - this.h; this.vy = 0; this.jumpCount = 0;
+                    }
+                }
+            }
+            if (this.y > canvas.height) gameOver("VOID");
+        },
+        checkOnPit() {
+            const pLeft = this.x + this.w * 0.3; const pRight = this.x + this.w * 0.7;
+            return obstacles.some(o => o.type === 'PIT' && pLeft > o.x && pRight < (o.x + o.w - 16));
+        },
+        draw() {
+            if (!imagesLoaded) return;
+            let sx = (this.jumpCount > 0) ? 32 : (Math.floor(frame / 8) % 2 ? 16 : 0);
+            ctx.save(); ctx.translate(Math.floor(this.x + this.w), Math.floor(this.y)); ctx.scale(-1, 1);
+            ctx.drawImage(spriteSheet, sx, 0, 16, 16, 0, 0, this.w, this.h); ctx.restore();
+        },
+        jump() {
+            if (this.jumpCount < CONFIG.MAX_JUMPS && !this.isFallingIntoPit) {
+                this.vy = (this.jumpCount === 0) ? CONFIG.FIRST_JUMP_POWER : CONFIG.SECOND_JUMP_POWER;
+                this.jumpCount++;
+                createDust(this.x + this.w/2, this.y + this.h, 6, COLORS.EFFECT);
+            }
+        }
+    };
+
+    function spawnObstacle() {
+        if (distanceTraveled >= nextSpawnDistance) {
+            distanceTraveled = 0;
+            let speedFactor = (currentSpeed - CONFIG.BASE_SPEED) * 15;
+            nextSpawnDistance = 250 + Math.random() * 250 + speedFactor;
+            const rand = Math.random();
+            let type, w, h, y, isPassable = false;
+            if (rand < 0.25) { type = 'PIT'; w = 80 + Math.random() * 110; h = 100; y = GROUND_Y; } 
+            else if (rand < 0.60) { type = 'WALL'; h = 40 + Math.random() * 60; w = 20 + Math.random() * 30; y = GROUND_Y - h; } 
+            else { 
+                type = 'FLOAT'; w = 30 + Math.random() * 120;
+                if (Math.random() < 0.5) { isPassable = true; h = 20 + Math.random() * 40; let gap = CONFIG.PLAYER_SIZE + 5 + Math.random() * 40; y = GROUND_Y - gap - h; } 
+                else { isPassable = false; h = 30 + Math.random() * 50; let gap = 10 + Math.random() * 15; y = GROUND_Y - gap - h; }
+            }
+            obstacles.push({ type, x: canvas.width, y, w, h, isPassable });
+        }
+    }
+
+    function loop() {
+        if (!gameActive) return;
+        frame++; score += Math.floor(currentSpeed); currentSpeed += CONFIG.SPEED_UP_RATIO;
+        let effectiveSpeed = (player.jumpCount === 2) ? currentSpeed * CONFIG.SECOND_JUMP_SPEED_MULTI : currentSpeed;
+        distanceTraveled += effectiveSpeed;
+        player.update(); spawnObstacle();
+        ctx.fillStyle = COLORS.BG; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        bgScroll -= effectiveSpeed * 0.15; ctx.fillStyle = "rgba(255,255,255,0.05)";
+        for (let i = 0; i < 15; i++) { let bx = (bgScroll % 100) + i * 100; ctx.fillRect(Math.floor(bx), 0, 1, canvas.height); }
+        ctx.fillStyle = COLORS.FG; ctx.fillRect(0, GROUND_Y, canvas.width, 4); 
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+            let o = obstacles[i]; o.x -= effectiveSpeed;
+            if (o.type === 'PIT') { ctx.fillStyle = COLORS.BG; ctx.fillRect(Math.floor(o.x), GROUND_Y, Math.floor(o.w), 10); } 
+            else { ctx.fillStyle = COLORS.FG; ctx.fillRect(Math.floor(o.x), Math.floor(o.y), Math.floor(o.w), Math.floor(o.h)); }
+            if (o.type !== 'PIT') {
+                const mx = CONFIG.HIT_BOX_MARGIN_X; const my = CONFIG.HIT_BOX_MARGIN_Y;
+                if (o.x < player.x + player.w - mx && o.x + o.w > player.x + mx && o.y < player.y + player.h - my && o.y + o.h > player.y + my) gameOver("CAUGHT BY " + o.type);
+            }
+            if (o.x < -300) obstacles.splice(i, 1);
+        }
+        for (let i = particles.length - 1; i >= 0; i--) { let p = particles[i]; p.update(); p.draw(); if (p.life <= 0) particles.splice(i, 1); }
+        player.draw();
+        scoreDisplay.innerText = "SCORE: " + String(score).padStart(6, '0');
+        requestAnimationFrame(loop);
+    }
+
+    function gameOver(msg) {
+        gameActive = false;
+        createDust(player.x + player.w/2, player.y + player.h/2, 30, COLORS.EFFECT);
+        particles.forEach(p => { p.update(); p.draw(); });
+        setTimeout(() => { alert(msg + "\nSCORE: " + score); location.reload(); }, 100);
+    }
+
     function startGame() {
-        startScreen.style.display = 'none'; // スタート画面を隠す
+        if (gameActive) return;
+        startScreen.style.display = 'none';
         gameActive = true;
-        loop(); // ループ開始
+        loop();
     }
 
     startButton.addEventListener('click', startGame);
-    // モバイルでの反応を速くするためにタッチイベントも
-    startButton.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        startGame();
-    }, {passive: false});
+    startButton.addEventListener('touchstart', (e) => { e.preventDefault(); startGame(); }, {passive: false});
 
-    // 入力（ジャンプ）
-    window.addEventListener('keydown', (e) => { if (e.code === 'Space' || e.code === 'ArrowUp') player.jump(); });
-    // ゲーム画面を直接触った時だけジャンプ（スタート画面を触った時は反応させない）
+    window.addEventListener('keydown', (e) => { 
+        if (e.code === 'Space' || e.code === 'ArrowUp') {
+            if (!gameActive) startGame();
+            else player.jump();
+        }
+    });
+
     canvas.addEventListener('touchstart', (e) => { 
         if(gameActive) { player.jump(); e.preventDefault(); }
     }, {passive: false});
 
-    // サービスワーカー登録
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('./sw.js').catch(err => console.log(err));
         });
     }
-
-    // ★ 以前あった最後の loop(); 呼び出しは削除 ★
 </script>
 </body>
 </html>
