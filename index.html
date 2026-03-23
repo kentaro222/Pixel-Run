@@ -240,7 +240,7 @@
         if (distanceTraveled >= nextSpawnDistance) {
             distanceTraveled = 0;
             // スピードが上がるにつれて、障害物の間隔を開けるための補正係数（初期値15）
-            let speedFactor = (currentSpeed - CONFIG.BASE_SPEED) * 23;
+            let speedFactor = (currentSpeed - CONFIG.BASE_SPEED) * 30;
             
             // ★調整ポイント: 次の障害物が出るまでの距離（初期値ベース250 + ランダム0〜250 + スピード補正）
             nextSpawnDistance = 200 + Math.random() * 200 + speedFactor;
@@ -263,7 +263,7 @@
                 w = 20 + Math.random() * 30; // 幅: 20〜50
                 y = GROUND_Y - h; 
             } 
-              else { 
+            else { 
                 // 残り40%の確率で「浮遊物（FLOAT）」
                 type = 'FLOAT'; 
                 
