@@ -109,7 +109,7 @@
         SECOND_JUMP_SPEED_MULTI: 0.8,// 2段ジャンプ中の進行速度倍率（0.8なら、空中で少し減速するようになります）。
         MAX_JUMPS: 2,                // 最大ジャンプ回数。3にすれば3段ジャンプが可能になります。
         BASE_SPEED: 5.0,             // ゲーム開始時のスクロール速度（難易度のベース）（初期値5.0）。
-        SPEED_UP_RATIO: 0.0010,      // 1フレームごとの速度上昇量。大きいほど急激にゲームが難しくなります。（初期値25）
+        SPEED_UP_RATIO: 0.0008,      // 1フレームごとの速度上昇量。大きいほど急激にゲームが難しくなります。（初期値25）
         PLAYER_SIZE: 48,             // プレイヤーキャラクターのサイズ（幅・高さ）。
         HIT_BOX_MARGIN_X: 14,        // 横方向の当たり判定の余白（大きいほど当たり判定が小さくなり、プレイヤーに有利になります）。
         HIT_BOX_MARGIN_Y: 14         // 縦方向の当たり判定の余白。
@@ -240,7 +240,7 @@
         if (distanceTraveled >= nextSpawnDistance) {
             distanceTraveled = 0;
             // スピードが上がるにつれて、障害物の間隔を開けるための補正係数（初期値15）
-            let speedFactor = (currentSpeed - CONFIG.BASE_SPEED) * 40;
+            let speedFactor = (currentSpeed - CONFIG.BASE_SPEED) * 50;
             
             // ★調整ポイント: 次の障害物が出るまでの距離（初期値ベース250 + ランダム0〜250 + スピード補正）
             nextSpawnDistance = 200 + Math.random() * 200 + speedFactor;
