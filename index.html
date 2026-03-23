@@ -240,7 +240,7 @@
         if (distanceTraveled >= nextSpawnDistance) {
             distanceTraveled = 0;
             // スピードが上がるにつれて、障害物の間隔を開けるための補正係数（初期値15）
-            let speedFactor = (currentSpeed - CONFIG.BASE_SPEED) * 30;
+            let speedFactor = (currentSpeed - CONFIG.BASE_SPEED) * 40;
             
             // ★調整ポイント: 次の障害物が出るまでの距離（初期値ベース250 + ランダム0〜250 + スピード補正）
             nextSpawnDistance = 200 + Math.random() * 200 + speedFactor;
