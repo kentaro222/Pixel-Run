@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pixel-run-v2';
+const CACHE_NAME = 'pixel-run-v3';
 const ASSETS = [
   './',
   './index.html',
