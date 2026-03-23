@@ -135,13 +135,18 @@
     document.getElementById('start-best-score').innerText = "BEST: " + String(highScore).padStart(6, '0');
 
     function resize() {
-        const scaleX = window.innerWidth / INTERNAL_W;
-        const scaleY = window.innerHeight / INTERNAL_H;
-        let scale = Math.max(1, Math.floor(Math.min(scaleX, scaleY)));
-        if (scaleX < 1 || scaleY < 1) scale = Math.min(scaleX, scaleY);
-        canvas.width = INTERNAL_W; canvas.height = INTERNAL_H;
+        // ウィンドウサイズに対して、縦横どちらが先に限界に来るかを計算（比率を維持）
+        const scale = Math.min(window.innerWidth / INTERNAL_W, window.innerHeight / INTERNAL_H);
+        
+        // 内部解像度は固定
+        canvas.width = INTERNAL_W; 
+        canvas.height = INTERNAL_H;
+        
+        // CSSの表示サイズに、計算した倍率（小数を含む）を直接適用
         canvas.style.width = (INTERNAL_W * scale) + "px";
         canvas.style.height = (INTERNAL_H * scale) + "px";
+        
+        // アンチエイリアスを無効にして、ドットの質感を守る
         ctx.imageSmoothingEnabled = false;
     }
     window.addEventListener('resize', resize);
