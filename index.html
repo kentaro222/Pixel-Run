@@ -9,11 +9,14 @@
     <title>PIXEL RUN</title>
     <style>
         body { 
-            margin: 0; background: #000; 
+            margin: 0; background: #05020a; 
             display: flex; justify-content: center; align-items: center; 
             height: 100vh; width: 100vw;
-            color: #fff; font-family: 'Courier New', monospace; 
-            overflow: hidden; touch-action: none;
+            color: #00ffff; font-family: 'Courier New', monospace; 
+            overflow: hidden; 
+            /* ★修正ポイント: ブラウザの意図しないズームやスクロールを完全に無効化 */
+            touch-action: none; 
+            user-select: none; -webkit-user-select: none; 
         }
         #game-wrapper {
             position: relative;
@@ -27,33 +30,31 @@
             display: block; 
             image-rendering: pixelated;
             image-rendering: crisp-edges;
-            border: 2px solid #fff;
+            border: 2px solid #00ffff;
             background-color: #000;
         }
 
-        /* 画面オーバーレイ共通設定 */
         .overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.85);
+            background: rgba(5, 2, 10, 0.9);
             display: flex; flex-direction: column;
             justify-content: center; align-items: center;
             z-index: 20;
             text-align: center;
         }
 
-        /* 1-bitスタイルのボタン */
         .pixel-button {
-            background: #fff; color: #000;
-            border: 4px solid #fff;
+            background: #ff00ff; color: #05020a;
+            border: 4px solid #ff00ff;
             padding: 15px 40px;
             font-family: 'Courier New', monospace;
             font-size: 24px; font-weight: bold;
             cursor: pointer;
-            box-shadow: 0 0 0 4px #000 inset;
+            box-shadow: 0 0 10px #ff00ff, 0 0 0 4px #05020a inset;
             margin-top: 20px;
         }
-        .pixel-button:active { background: #ccc; }
+        .pixel-button:active { background: #aa00aa; border-color: #aa00aa; }
 
         #ui { 
             position: absolute; 
@@ -62,22 +63,23 @@
             padding: 0 20px; box-sizing: border-box; 
             pointer-events: none; z-index: 10; 
         }
-        #scoreDisplay { font-size: 20px; font-weight: bold; }
+        #titleDisplay { color: #ffff00; }
+        #scoreDisplay { font-size: 20px; font-weight: bold; color: #00ffff; }
 
-        .score-text { font-size: 32px; margin: 10px 0; }
-        .high-score-text { font-size: 18px; color: #aaa; }
+        .score-text { font-size: 32px; margin: 10px 0; color: #ffff00; }
+        .high-score-text { font-size: 18px; color: #aaaaaa; }
     </style>
 </head>
 <body>
     <div id="game-wrapper">
         <div id="start-screen" class="overlay">
-            <h1 style="font-size: 48px; margin-bottom: 10px;">PIXEL RUN</h1>
+            <h1 style="font-size: 48px; margin-bottom: 10px; color: #ffff00; text-shadow: 0 0 15px #ffff00;">PIXEL RUN</h1>
             <p class="high-score-text" id="start-best-score">BEST: 000000</p>
             <button id="start-button" class="pixel-button">START GAME</button>
         </div>
 
         <div id="game-over-screen" class="overlay" style="display: none;">
-            <h1 style="font-size: 40px; color: #fff; margin-bottom: 10px;">GAME OVER</h1>
+            <h1 style="font-size: 40px; color: #ff00ff; text-shadow: 0 0 15px #ff00ff; margin-bottom: 10px;">GAME OVER</h1>
             <p id="final-score" class="score-text">SCORE: 000000</p>
             <p id="best-score-notice" class="high-score-text">BEST: 000000</p>
             <button id="restart-button" class="pixel-button">RETRY</button>
@@ -97,20 +99,33 @@
     const startScreen = document.getElementById('start-screen');
     const gameOverScreen = document.getElementById('game-over-screen');
     
-    const COLORS = { BG: "#000000", FG: "#ffffff", UI: "#ffffff", EFFECT: "#ffffff" };
-    const INTERNAL_W = 640; const INTERNAL_H = 360;
+    const COLORS = { 
+        BG_GRADIENT_START: "#030308", 
+        BG_GRADIENT_MID: "#0a0315",    
+        BG_GRADIENT_END: "#05020a",    
+        GRID: "#00ffff",            
+        FG: "#ff00ff",               
+        PLAYER_GLOW: "#ffffff",      
+        EFFECT: "#ffff00",           
+        UI: "#00ffff"                
+    };
+    
+    // ★調整ポイント: ゲームの内部解像度
+    const INTERNAL_W = 640; 
+    const INTERNAL_H = 360;
 
+    // ★調整ポイント: ゲームの基本設定
     const CONFIG = {
-        GRAVITY: 0.6,
-        FIRST_JUMP_POWER: -11,
-        SECOND_JUMP_POWER: -8,
+        GRAVITY: 0.6,                
+        FIRST_JUMP_POWER: -11,       
+        SECOND_JUMP_POWER: -8,       
         SECOND_JUMP_SPEED_MULTI: 0.8,
-        MAX_JUMPS: 2,
-        BASE_SPEED: 5.0,
-        SPEED_UP_RATIO: 0.0025,
-        PLAYER_SIZE: 48,
-        HIT_BOX_MARGIN_X: 14,
-        HIT_BOX_MARGIN_Y: 14 
+        MAX_JUMPS: 2,                
+        BASE_SPEED: 5.5,             
+        SPEED_UP_RATIO: 0.0015,      
+        PLAYER_SIZE: 48,             
+        HIT_BOX_MARGIN_X: 14,        
+        HIT_BOX_MARGIN_Y: 14         
     };
 
     const SPRITE_SHEET_URL = 'player_1bit00_sheet.png'; 
@@ -126,7 +141,6 @@
     let distanceTraveled = 0;
     let nextSpawnDistance = 100;
 
-    // ハイスコアの読み込み
     let highScore = localStorage.getItem('pixelRunHighScore') || 0;
     document.getElementById('start-best-score').innerText = "BEST: " + String(highScore).padStart(6, '0');
 
@@ -149,11 +163,20 @@
     spriteSheet.onload = () => { imagesLoaded = true; drawInitialState(); };
 
     function drawInitialState() {
-        ctx.fillStyle = COLORS.BG; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const grad = ctx.createLinearGradient(0, 0, 0, INTERNAL_H);
+        grad.addColorStop(0, COLORS.BG_GRADIENT_START);
+        grad.addColorStop(0.5, COLORS.BG_GRADIENT_MID);
+        grad.addColorStop(1, COLORS.BG_GRADIENT_END);
+        ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
         ctx.fillStyle = COLORS.FG; ctx.fillRect(0, GROUND_Y, canvas.width, 4);
+        
         if (imagesLoaded) {
-            ctx.save(); ctx.translate(Math.floor(80 + CONFIG.PLAYER_SIZE), Math.floor(GROUND_Y - CONFIG.PLAYER_SIZE));
+            ctx.save(); 
+            ctx.translate(Math.floor(80 + CONFIG.PLAYER_SIZE), Math.floor(GROUND_Y - CONFIG.PLAYER_SIZE));
             ctx.scale(-1, 1);
+            ctx.shadowColor = COLORS.PLAYER_GLOW;
+            ctx.shadowBlur = 15; 
             ctx.drawImage(spriteSheet, 0, 0, 16, 16, 0, 0, CONFIG.PLAYER_SIZE, CONFIG.PLAYER_SIZE);
             ctx.restore();
         }
@@ -162,9 +185,14 @@
     class Particle {
         constructor(x, y, color, vx, vy) {
             this.x = x; this.y = y; this.color = color; this.vx = vx; this.vy = vy;
-            this.life = 1.0; this.size = Math.random() * 3 + 1;
+            this.life = 1.0; 
+            this.size = Math.random() * 3 + 1;
         }
-        update() { this.x += this.vx - currentSpeed * 0.4; this.y += this.vy; this.life -= 0.06; }
+        update() { 
+            this.x += this.vx - currentSpeed * 0.4; 
+            this.y += this.vy; 
+            this.life -= 0.06; 
+        }
         draw() {
             if (this.life <= 0) return;
             ctx.globalAlpha = this.life; ctx.fillStyle = this.color;
@@ -196,37 +224,66 @@
             if (this.y > canvas.height) gameOver("VOID");
         },
         checkOnPit() {
-            const pLeft = this.x + this.w * 0.3; const pRight = this.x + this.w * 0.7;
+            const pLeft = this.x + this.w * 0.3; 
+            const pRight = this.x + this.w * 0.7;
             return obstacles.some(o => o.type === 'PIT' && pLeft > o.x && pRight < (o.x + o.w - 16));
         },
         draw() {
             if (!imagesLoaded) return;
             let sx = (this.jumpCount > 0) ? 32 : (Math.floor(frame / 8) % 2 ? 16 : 0);
-            ctx.save(); ctx.translate(Math.floor(this.x + this.w), Math.floor(this.y)); ctx.scale(-1, 1);
-            ctx.drawImage(spriteSheet, sx, 0, 16, 16, 0, 0, this.w, this.h); ctx.restore();
-        },
-        jump() {
-            if (this.jumpCount < CONFIG.MAX_JUMPS && !this.isFallingIntoPit) {
-                this.vy = (this.jumpCount === 0) ? CONFIG.FIRST_JUMP_POWER : CONFIG.SECOND_JUMP_POWER;
-                this.jumpCount++;
-                createDust(this.x + this.w/2, this.y + this.h, 6, COLORS.EFFECT);
-            }
+            
+            ctx.save(); 
+            ctx.translate(Math.floor(this.x + this.w), Math.floor(this.y)); 
+            ctx.scale(-1, 1);
+            ctx.shadowColor = COLORS.PLAYER_GLOW;
+            ctx.shadowBlur = 15; 
+            ctx.drawImage(spriteSheet, sx, 0, 16, 16, 0, 0, this.w, this.h);
+            ctx.restore();
         }
     };
 
     function spawnObstacle() {
         if (distanceTraveled >= nextSpawnDistance) {
             distanceTraveled = 0;
-            let speedFactor = (currentSpeed - CONFIG.BASE_SPEED) * 15;
+            let speedFactor = (currentSpeed - CONFIG.BASE_SPEED) * 22;
             nextSpawnDistance = 250 + Math.random() * 250 + speedFactor;
+            
             const rand = Math.random();
             let type, w, h, y, isPassable = false;
-            if (rand < 0.25) { type = 'PIT'; w = 80 + Math.random() * 110; h = 100; y = GROUND_Y; } 
-            else if (rand < 0.60) { type = 'WALL'; h = 40 + Math.random() * 60; w = 20 + Math.random() * 30; y = GROUND_Y - h; } 
+            
+            if (rand < 0.25) { 
+                type = 'PIT'; 
+                w = 80 + Math.random() * 110; 
+                h = 100; 
+                y = GROUND_Y; 
+            } 
+            else if (rand < 0.60) { 
+                type = 'WALL'; 
+                h = 40 + Math.random() * 60; 
+                w = 20 + Math.random() * 30; 
+                y = GROUND_Y - h; 
+            } 
             else { 
-                type = 'FLOAT'; w = 30 + Math.random() * 120;
-                if (Math.random() < 0.5) { isPassable = true; h = 20 + Math.random() * 40; let gap = CONFIG.PLAYER_SIZE + 5 + Math.random() * 40; y = GROUND_Y - gap - h; } 
-                else { isPassable = false; h = 30 + Math.random() * 50; let gap = 10 + Math.random() * 15; y = GROUND_Y - gap - h; }
+                type = 'FLOAT'; 
+                if (Math.random() < 0.5) { 
+                    isPassable = true; 
+                    w = 30 + Math.random() * 120;
+                    h = 20 + Math.random() * 40; 
+                    let gap = CONFIG.PLAYER_SIZE + 5 + Math.random() * 40; 
+                    y = GROUND_Y - gap - h; 
+                } 
+                else { 
+                    isPassable = false; 
+                    let speedDiff = currentSpeed - CONFIG.BASE_SPEED;
+                    let baseWidth = 50 + speedDiff * 10; 
+                    let randomWidth = Math.random() * 30; 
+                    w = baseWidth + randomWidth;
+                    if (w > 180) w = 180;
+
+                    h = 30 + Math.random() * 50; 
+                    let gap = 10 + Math.random() * 15; 
+                    y = GROUND_Y - gap - h; 
+                }
             }
             obstacles.push({ type, x: canvas.width, y, w, h, isPassable });
         }
@@ -234,24 +291,82 @@
 
     function loop() {
         if (!gameActive) return;
-        frame++; score += Math.floor(currentSpeed / 2); currentSpeed += CONFIG.SPEED_UP_RATIO;
+        frame++; 
+        
+        score += Math.floor(currentSpeed / 2); 
+        currentSpeed += CONFIG.SPEED_UP_RATIO;
+        
         let effectiveSpeed = (player.jumpCount === 2) ? currentSpeed * CONFIG.SECOND_JUMP_SPEED_MULTI : currentSpeed;
         distanceTraveled += effectiveSpeed;
         player.update(); spawnObstacle();
-        ctx.fillStyle = COLORS.BG; ctx.fillRect(0, 0, canvas.width, canvas.height);
-        bgScroll -= effectiveSpeed * 0.15; ctx.fillStyle = "rgba(255,255,255,0.05)";
-        for (let i = 0; i < 15; i++) { let bx = (bgScroll % 100) + i * 100; ctx.fillRect(Math.floor(bx), 0, 1, canvas.height); }
-        ctx.fillStyle = COLORS.FG; ctx.fillRect(0, GROUND_Y, canvas.width, 4); 
-        for (let i = obstacles.length - 1; i >= 0; i--) {
-            let o = obstacles[i]; o.x -= effectiveSpeed;
-            if (o.type === 'PIT') { ctx.fillStyle = COLORS.BG; ctx.fillRect(Math.floor(o.x), GROUND_Y, Math.floor(o.w), 10); } 
-            else { ctx.fillStyle = COLORS.FG; ctx.fillRect(Math.floor(o.x), Math.floor(o.y), Math.floor(o.w), Math.floor(o.h)); }
-            if (o.type !== 'PIT') {
-                const mx = CONFIG.HIT_BOX_MARGIN_X; const my = CONFIG.HIT_BOX_MARGIN_Y;
-                if (o.x < player.x + player.w - mx && o.x + o.w > player.x + mx && o.y < player.y + player.h - my && o.y + o.h > player.y + my) gameOver("CRASHED!");
-            }
-            if (o.x < -300) obstacles.splice(i, 1);
+        
+        // 背景グラデーション
+        const grad = ctx.createLinearGradient(0, 0, 0, INTERNAL_H);
+        grad.addColorStop(0, COLORS.BG_GRADIENT_START);
+        grad.addColorStop(0.5, COLORS.BG_GRADIENT_MID);
+        grad.addColorStop(1, COLORS.BG_GRADIENT_END);
+        ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // グリッド
+        bgScroll -= effectiveSpeed * 0.15; 
+        ctx.strokeStyle = COLORS.GRID;
+        ctx.lineWidth = 0.5;
+        ctx.shadowColor = COLORS.GRID;
+        ctx.shadowBlur = 5;
+        
+        for (let i = 0; i < 15; i++) { 
+            let bx = (bgScroll % 100) + i * 100;
+            ctx.beginPath(); ctx.moveTo(bx, 0); ctx.lineTo(bx, canvas.height); ctx.stroke();
         }
+        for (let i = 0; i < 10; i++) {
+            let by = INTERNAL_H - (i * 40); 
+            ctx.beginPath(); ctx.moveTo(0, by); ctx.lineTo(canvas.width, by); ctx.stroke();
+        }
+        ctx.shadowBlur = 0;
+        
+        // 障害物の移動処理
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+            obstacles[i].x -= effectiveSpeed;
+            if (obstacles[i].x < -300) obstacles.splice(i, 1);
+        }
+
+        // 床の描画（落とし穴を避けて描画）
+        let pits = obstacles.filter(o => o.type === 'PIT').sort((a, b) => a.x - b.x);
+        let cx = 0; 
+        ctx.fillStyle = COLORS.FG;
+        ctx.shadowColor = COLORS.FG;
+        ctx.shadowBlur = 10;
+        
+        for (let pit of pits) {
+            if (pit.x > cx) {
+                let w = pit.x - cx;
+                ctx.fillRect(Math.floor(cx), GROUND_Y, Math.floor(w), 4);
+            }
+            cx = Math.max(cx, pit.x + pit.w); 
+        }
+        if (cx < canvas.width) {
+            ctx.fillRect(Math.floor(cx), GROUND_Y, Math.floor(canvas.width - cx), 4);
+        }
+        ctx.shadowBlur = 0;
+
+        // 壁と浮遊物の描画と当たり判定
+        for (let i = 0; i < obstacles.length; i++) {
+            let o = obstacles[i];
+            
+            if (o.type !== 'PIT') {
+                ctx.shadowColor = COLORS.FG;
+                ctx.shadowBlur = 10;
+                ctx.fillStyle = COLORS.FG; 
+                ctx.fillRect(Math.floor(o.x), Math.floor(o.y), Math.floor(o.w), Math.floor(o.h));
+                ctx.shadowBlur = 0;
+                
+                const mx = CONFIG.HIT_BOX_MARGIN_X; const my = CONFIG.HIT_BOX_MARGIN_Y;
+                if (o.x < player.x + player.w - mx && o.x + o.w > player.x + mx && o.y < player.y + player.h - my && o.y + o.h > player.y + my) {
+                    gameOver("CRASHED!");
+                }
+            }
+        }
+        
         for (let i = particles.length - 1; i >= 0; i--) { let p = particles[i]; p.update(); p.draw(); if (p.life <= 0) particles.splice(i, 1); }
         player.draw();
         scoreDisplay.innerText = "SCORE: " + String(score).padStart(6, '0');
@@ -262,7 +377,6 @@
         gameActive = false;
         createDust(player.x + player.w/2, player.y + player.h/2, 30, COLORS.EFFECT);
         
-        // ハイスコア更新チェック
         let isNewRecord = false;
         if (score > highScore) {
             highScore = score;
@@ -270,7 +384,6 @@
             isNewRecord = true;
         }
 
-        // 画面の更新
         setTimeout(() => {
             document.getElementById('final-score').innerText = "SCORE: " + String(score).padStart(6, '0');
             document.getElementById('best-score-notice').innerText = (isNewRecord ? "NEW RECORD! " : "BEST: ") + String(highScore).padStart(6, '0');
@@ -290,16 +403,33 @@
     document.getElementById('start-button').addEventListener('click', initGame);
     document.getElementById('restart-button').addEventListener('click', initGame);
 
-    window.addEventListener('keydown', (e) => { 
-        if (e.code === 'Space' || e.code === 'ArrowUp') {
-            if (!gameActive && gameOverScreen.style.display === 'none') initGame();
-            else if (gameActive) player.jump();
+    // ==========================================
+    // ★修正ポイント: 入力処理の完全最適化
+    // 画面全体(document)のどこを触っても確実にジャンプする処理
+    // ==========================================
+    document.addEventListener('touchstart', (e) => { 
+        if (e.target.tagName === 'BUTTON') return; // ボタン部分は除外
+        if (gameActive) { 
+            player.jump(); 
+            if (e.cancelable) e.preventDefault(); 
         }
+    }, {passive: false}); // passive: false を指定してスクロールを確実に止める
+
+    document.addEventListener('mousedown', (e) => { 
+        if (e.target.tagName === 'BUTTON') return;
+        if (gameActive) { player.jump(); }
     });
 
-    canvas.addEventListener('touchstart', (e) => { 
-        if(gameActive) { player.jump(); e.preventDefault(); }
-    }, {passive: false});
+    window.addEventListener('keydown', (e) => { 
+        if (e.code === 'Space' || e.code === 'ArrowUp') {
+            if (!gameActive && gameOverScreen.style.display === 'none') {
+                initGame();
+            } else if (gameActive) {
+                player.jump();
+                e.preventDefault(); 
+            }
+        }
+    });
 
 </script>
 </body>
